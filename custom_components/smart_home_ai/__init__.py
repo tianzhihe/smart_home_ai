@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Literal
 
-# Transform the original OpenAI to GenAI
+# Transform the original OpenAI to Google GenAI
 from google import genai
 from google.genai.errors import APIError, ClientError
 from google.genai.types import (
