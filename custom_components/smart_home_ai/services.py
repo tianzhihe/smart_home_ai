@@ -5,6 +5,24 @@ import mimetypes
 from pathlib import Path
 from urllib.parse import urlparse
 
+
+# Transform the original OpenAI to Google GenAI
+from google import genai
+from google.genai.errors import APIError, ClientError
+from google.genai.types import (
+    AutomaticFunctionCallingConfig,
+    Content,
+    FunctionDeclaration,
+    GenerateContentConfig,
+    GenerateContentResponse,
+    HarmCategory,
+    Part,
+    SafetySetting,
+    Schema,
+    Tool,
+)
+
+
 # AsyncOpenAI and OpenAIError are used to handle OpenAI model calls and potential exceptions.
 from openai import AsyncOpenAI
 from openai._exceptions import OpenAIError
