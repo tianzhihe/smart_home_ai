@@ -200,21 +200,22 @@ async def validate_authentication(
     if skip_authentication:
         return
 
-    if is_azure(base_url):
-        client = AsyncAzureOpenAI(
-            api_key=api_key,
-            azure_endpoint=base_url,
-            api_version=api_version,
-            organization=organization,
-            http_client=get_async_client(hass),
-        )
-    else:
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            organization=organization,
-            http_client=get_async_client(hass),
-        )
+    # Remove is_azure check step
+    # if is_azure(base_url):
+    #    client = AsyncAzureOpenAI(
+    #        api_key=api_key,
+    #        azure_endpoint=base_url,
+    #        api_version=api_version,
+    #        organization=organization,
+    #        http_client=get_async_client(hass),
+    #    )
+    # else:
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        organization=organization,
+        http_client=get_async_client(hass),
+    )
 
     await hass.async_add_executor_job(partial(client.models.list, timeout=10))
 
