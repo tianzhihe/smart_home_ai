@@ -145,11 +145,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         #        CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
         #    ),
         #)
-    except AuthenticationError as err:
+
+    # Use GenAI Error Files
+    except ClientError as err:
         _LOGGER.error("Invalid API key: %s", err)
         return False
-    except OpenAIError as err:
+    except APIError as err:
         raise ConfigEntryNotReady(err) from err
+
+    # Pause the OpenAI Error Files
+    #except AuthenticationError as err:
+    #    _LOGGER.error("Invalid API key: %s", err)
+    #    return False
+    #except OpenAIError as err:
+    #    raise ConfigEntryNotReady(err) from err
 
     # Creates an instance of the OpenAIAgent class, which handles all conversation logic.
     agent = OpenAIAgent(hass, entry)
