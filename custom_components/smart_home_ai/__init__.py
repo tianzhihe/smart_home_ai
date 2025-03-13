@@ -18,6 +18,9 @@ from google.genai.types import (
     SafetySetting,
     Schema,
     Tool,
+    GenerateContentResponse,
+    Message,
+    Choice,
 )
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
