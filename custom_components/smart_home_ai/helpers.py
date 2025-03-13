@@ -33,6 +33,23 @@ from urllib import parse
 # 'BeautifulSoup' from bs4 is used to parse HTML and XML documents.
 from bs4 import BeautifulSoup
 
+# Transform the original OpenAI to Google GenAI
+from google import genai
+from google.genai.errors import APIError, ClientError
+from google.genai.types import (
+    AutomaticFunctionCallingConfig,
+    Content,
+    FunctionDeclaration,
+    GenerateContentConfig,
+    GenerateContentResponse,
+    HarmCategory,
+    Part,
+    SafetySetting,
+    Schema,
+    Tool,
+)
+
+
 # The 'openai' package provides functionalities to interact with OpenAI services.
 # Here we import asynchronous classes for Azure OpenAI and OpenAI usage.
 from openai import AsyncAzureOpenAI, AsyncOpenAI
