@@ -94,7 +94,6 @@ from .exceptions import (
 # Imports custom exceptions defined in the same integration’s package, describing various error conditions that can arise.
 from .helpers import (
     get_function_executor,
-    is_azure,
     validate_authentication,
 )
 from .services import async_setup_services
