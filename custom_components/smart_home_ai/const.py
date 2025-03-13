@@ -28,7 +28,6 @@ entity_id,name,state,aliases
 
 The current state of devices is provided in available devices.
 Use execute_services function only for requested action, not for current states.
-Do not execute service without user's confirmation.
 Do not restate or appreciate what user says, rather make a quick inquiry.
 """
 CONF_CHAT_MODEL = "chat_model"
