@@ -80,7 +80,10 @@ from .const import (
     DEFAULT_USE_TOOLS,
     DOMAIN,
 )
-from .helpers import validate_authentication, validate_authentication_new
+from .helpers import (
+    validate_authentication, 
+    validate_authentication_new,
+)
 
 # Creates a logger for outputting log messages under the current module name.
 _LOGGER = logging.getLogger(__name__)
