@@ -5,6 +5,21 @@ import json
 import logging
 from typing import Literal
 
+# Transform the original OpenAI to GenAI
+from google import genai
+from google.genai.errors import APIError, ClientError
+from google.genai.types import (
+    AutomaticFunctionCallingConfig,
+    Content,
+    FunctionDeclaration,
+    GenerateContentConfig,
+    HarmCategory,
+    Part,
+    SafetySetting,
+    Schema,
+    Tool,
+)
+
 from openai import AsyncAzureOpenAI, AsyncOpenAI
 from openai._exceptions import AuthenticationError, OpenAIError
 from openai.types.chat.chat_completion import (
