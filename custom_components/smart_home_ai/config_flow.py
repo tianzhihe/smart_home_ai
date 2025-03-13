@@ -6,6 +6,23 @@ import types
 from types import MappingProxyType
 from typing import Any
 
+# Transform the original OpenAI to Google GenAI
+from google import genai
+from google.genai.errors import APIError, ClientError
+from google.genai.types import (
+    AutomaticFunctionCallingConfig,
+    Content,
+    FunctionDeclaration,
+    GenerateContentConfig,
+    GenerateContentResponse,
+    HarmCategory,
+    Part,
+    SafetySetting,
+    Schema,
+    Tool,
+)
+
+
 from openai._exceptions import APIConnectionError, AuthenticationError
 import voluptuous as vol
 import yaml
