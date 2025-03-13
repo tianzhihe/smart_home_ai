@@ -95,6 +95,7 @@ from .exceptions import (
 from .helpers import (
     get_function_executor,
     validate_authentication,
+    validate_authentication_new,
 )
 from .services import async_setup_services
 
@@ -121,7 +122,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up OpenAI Conversation from a config entry."""
 
     try:
-        await validate_authentication(
+        # Use the GenAI Validation
+        await validate_authentication_new(
             hass=hass,
             api_key=entry.data[CONF_API_KEY],
             base_url=entry.data.get(CONF_BASE_URL),
@@ -131,6 +133,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
             ),
         )
+
+        # Pause the OpenAI Validation
+        #await validate_authentication(
+        #    hass=hass,
+        #    api_key=entry.data[CONF_API_KEY],
+        #    base_url=entry.data.get(CONF_BASE_URL),
+        #    api_version=entry.data.get(CONF_API_VERSION),
+        #    organization=entry.data.get(CONF_ORGANIZATION),
+        #    skip_authentication=entry.data.get(
+        #        CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
+        #    ),
+        #)
     except AuthenticationError as err:
         _LOGGER.error("Invalid API key: %s", err)
         return False
