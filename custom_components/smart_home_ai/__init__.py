@@ -170,21 +170,22 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
 
         # Depending on whether the URL is an Azure endpoint, 
         # creates an appropriate OpenAI client (AsyncAzureOpenAI or AsyncOpenAI) for sending chat requests.
-        if is_azure(base_url):
-            self.client = AsyncAzureOpenAI(
-                api_key=entry.data[CONF_API_KEY],
-                azure_endpoint=base_url,
-                api_version=entry.data.get(CONF_API_VERSION),
-                organization=entry.data.get(CONF_ORGANIZATION),
-                http_client=get_async_client(hass),
-            )
-        else:
-            self.client = AsyncOpenAI(
-                api_key=entry.data[CONF_API_KEY],
-                base_url=base_url,
-                organization=entry.data.get(CONF_ORGANIZATION),
-                http_client=get_async_client(hass),
-            )
+        # This step is removed, instead it directly create an OpenAI client through AsyncOpenAI
+        #if is_azure(base_url):
+        #    self.client = AsyncAzureOpenAI(
+        #        api_key=entry.data[CONF_API_KEY],
+        #        azure_endpoint=base_url,
+        #        api_version=entry.data.get(CONF_API_VERSION),
+        #        organization=entry.data.get(CONF_ORGANIZATION),
+        #        http_client=get_async_client(hass),
+        #    )
+        # else:
+        self.client = AsyncOpenAI(
+            api_key=entry.data[CONF_API_KEY],
+            base_url=base_url,
+            organization=entry.data.get(CONF_ORGANIZATION),
+            http_client=get_async_client(hass),
+        )
 
     # Indicates this agent accepts messages in any language.
     @property
