@@ -13,14 +13,12 @@ from google.genai.types import (
     Content,
     FunctionDeclaration,
     GenerateContentConfig,
+    GenerateContentResponse,
     HarmCategory,
     Part,
     SafetySetting,
     Schema,
     Tool,
-    GenerateContentResponse,
-    Message,
-    Choice,
 )
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
