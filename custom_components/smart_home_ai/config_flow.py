@@ -136,7 +136,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     skip_authentication = data.get(CONF_SKIP_AUTHENTICATION)
 
     if base_url == DEFAULT_CONF_BASE_URL:
-        # Do not set base_url if using OpenAI for case of OpenAI's base_url change
         base_url = None
         data.pop(CONF_BASE_URL)
 
@@ -163,11 +162,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for OpenAI Conversation."""
+    """Handle a config flow for GenAI Conversation."""
 
     # The version of this config flow’s schema. 
     # If the schema changes in the future, this can be incremented to handle migrations.
-    VERSION = 1
+    # This is version 1.1 for GenAI
+    VERSION = 1.1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -182,10 +182,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             await validate_input(self.hass, user_input)
-        except APIConnectionError:
+
+        # Use the GenAI Error 
+        except APIError:
             errors["base"] = "cannot_connect"
-        except AuthenticationError:
+        except ClientError:
             errors["base"] = "invalid_auth"
+        
+        # Block the OpenAI Error
+        #except APIConnectionError:
+        #    errors["base"] = "cannot_connect"
+        #except AuthenticationError:
+        #    errors["base"] = "invalid_auth"
+        
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
@@ -211,7 +220,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 # A custom class for presenting a separate form that configures advanced options.
 class OptionsFlow(config_entries.OptionsFlow):
-    """OpenAI config flow options handler."""
+    """GenAI config flow options handler."""
 
     # Stores the current config entry so the options flow knows the existing configuration.
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
@@ -228,8 +237,8 @@ class OptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(
                 title=user_input.get(CONF_NAME, DEFAULT_NAME), data=user_input
             )
-        # If no data has been submitted yet, the code generates a schema for the form (`openai_config_option_schema`) and shows it.
-        schema = self.openai_config_option_schema(self.config_entry.options)
+        # If no data has been submitted yet, the code generates a schema for the form (`genai_config_option_schema`) and shows it.
+        schema = self.genai_config_option_schema(self.config_entry.options)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(schema),
@@ -237,8 +246,8 @@ class OptionsFlow(config_entries.OptionsFlow):
 
     # A helper method that builds a schema dictionary for the options form. 
     # If there are no existing options, it falls back to `DEFAULT_OPTIONS`.
-    def openai_config_option_schema(self, options: MappingProxyType[str, Any]) -> dict:
-        """Return a schema for OpenAI completion options."""
+    def genai_config_option_schema(self, options: MappingProxyType[str, Any]) -> dict:
+        """Return a schema for GenAI completion options."""
         if not options:
             options = DEFAULT_OPTIONS
 
