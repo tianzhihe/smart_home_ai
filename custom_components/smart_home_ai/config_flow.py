@@ -139,8 +139,18 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
         base_url = None
         data.pop(CONF_BASE_URL)
 
-    # Pause the OpenAI validation fuction.
-    #await validate_authentication(
+    # OpenAI validation fuction.
+    await validate_authentication(
+        hass=hass,
+        api_key=api_key,
+        base_url=base_url,
+        api_version=api_version,
+        organization=organization,
+     skip_authentication=skip_authentication,
+    )
+    
+    # Use the Gen AI validation function
+    #await validate_authentication_new(
     #    hass=hass,
     #    api_key=api_key,
     #    base_url=base_url,
@@ -148,16 +158,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> None:
     #    organization=organization,
     #    skip_authentication=skip_authentication,
     #)
-    
-    # Use the Gen AI validation function
-    await validate_authentication_new(
-        hass=hass,
-        api_key=api_key,
-        base_url=base_url,
-        api_version=api_version,
-        organization=organization,
-        skip_authentication=skip_authentication,
-    )
     
 
 
@@ -189,11 +189,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except ClientError:
             errors["base"] = "invalid_auth"
         
-        # Block the OpenAI Error
-        #except APIConnectionError:
-        #    errors["base"] = "cannot_connect"
-        #except AuthenticationError:
-        #    errors["base"] = "invalid_auth"
+        # OpenAI Error
+        except APIConnectionError:
+            errors["base"] = "cannot_connect"
+        except AuthenticationError:
+            errors["base"] = "invalid_auth"
         
         except Exception:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception")
