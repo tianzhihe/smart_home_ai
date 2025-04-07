@@ -123,19 +123,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     try:
         # Use the GenAI Validation
-        await validate_authentication_new(
-            hass=hass,
-            api_key=entry.data[CONF_API_KEY],
-            base_url=entry.data.get(CONF_BASE_URL),
-            api_version=entry.data.get(CONF_API_VERSION),
-            organization=entry.data.get(CONF_ORGANIZATION),
-            skip_authentication=entry.data.get(
-                CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
-            ),
-        )
-
-        # Pause the OpenAI Validation
-        #await validate_authentication(
+        # await validate_authentication_new(
         #    hass=hass,
         #    api_key=entry.data[CONF_API_KEY],
         #    base_url=entry.data.get(CONF_BASE_URL),
@@ -146,19 +134,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         #    ),
         #)
 
-    # Use GenAI Error Files
-    except ClientError as err:
-        _LOGGER.error("Invalid API key: %s", err)
-        return False
-    except APIError as err:
-        raise ConfigEntryNotReady(err) from err
+        # OpenAI Validation
+        await validate_authentication(
+            hass=hass,
+            api_key=entry.data[CONF_API_KEY],
+            base_url=entry.data.get(CONF_BASE_URL),
+            api_version=entry.data.get(CONF_API_VERSION),
+            organization=entry.data.get(CONF_ORGANIZATION),
+            skip_authentication=entry.data.get(
+                CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
+            ),
+        )
 
-    # Pause the OpenAI Error Files
-    #except AuthenticationError as err:
+    # Use GenAI Error Files
+    #except ClientError as err:
     #    _LOGGER.error("Invalid API key: %s", err)
     #    return False
-    #except OpenAIError as err:
+    #except APIError as err:
     #    raise ConfigEntryNotReady(err) from err
+
+    # OpenAI Error Files
+    except AuthenticationError as err:
+        _LOGGER.error("Invalid API key: %s", err)
+        return False
+    except OpenAIError as err:
+        raise ConfigEntryNotReady(err) from err
 
     # Creates an instance of the OpenAIAgent class, which handles all conversation logic.
     agent = OpenAIAgent(hass, entry)
@@ -194,15 +194,15 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         # Depending on whether the URL is an Azure endpoint, 
         # creates an appropriate OpenAI client (AsyncAzureOpenAI or AsyncOpenAI) for sending chat requests.
         # This step is removed, instead it directly create an OpenAI client through AsyncOpenAI
-        #if is_azure(base_url):
-        #    self.client = AsyncAzureOpenAI(
-        #        api_key=entry.data[CONF_API_KEY],
-        #        azure_endpoint=base_url,
-        #        api_version=entry.data.get(CONF_API_VERSION),
-        #        organization=entry.data.get(CONF_ORGANIZATION),
-        #        http_client=get_async_client(hass),
-        #    )
-        # else:
+        if is_azure(base_url):
+            self.client = AsyncAzureOpenAI(
+                api_key=entry.data[CONF_API_KEY],
+                azure_endpoint=base_url,
+                api_version=entry.data.get(CONF_API_VERSION),
+                organization=entry.data.get(CONF_ORGANIZATION),
+                http_client=get_async_client(hass),
+            )
+        else:
         self.client = AsyncOpenAI(
             api_key=entry.data[CONF_API_KEY],
             base_url=base_url,
