@@ -28,8 +28,8 @@ entity_id,name,state,aliases
 
 The current state of devices is provided in available devices.
 Use execute_services function only for requested action, not for current states.
-Do not execute service without user's confirmation.
 Do not restate or appreciate what user says, rather make a quick inquiry.
+Proactively give user suggestions on the control of smart home devices.
 """
 CONF_CHAT_MODEL = "chat_model"
 DEFAULT_CHAT_MODEL = "gpt-4o"
