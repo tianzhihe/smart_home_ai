@@ -1,4 +1,4 @@
-"""Constants for the Extended OpenAI Conversation integration."""
+"""Constants for the Smart Home AI Conversation integration."""
 
 DOMAIN = "smart_home_ai_conversation"
 DEFAULT_NAME = "Smart Home AI Conversation"
