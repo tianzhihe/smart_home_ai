@@ -5,22 +5,6 @@ import json
 import logging
 from typing import Literal
 
-# Transform the original OpenAI to Google GenAI
-from google import genai
-from google.genai.errors import APIError, ClientError
-from google.genai.types import (
-    AutomaticFunctionCallingConfig,
-    Content,
-    FunctionDeclaration,
-    GenerateContentConfig,
-    GenerateContentResponse,
-    HarmCategory,
-    Part,
-    SafetySetting,
-    Schema,
-    Tool,
-)
-
 from openai import AsyncAzureOpenAI, AsyncOpenAI
 from openai._exceptions import AuthenticationError, OpenAIError
 from openai.types.chat.chat_completion import (
@@ -48,8 +32,6 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.typing import ConfigType
-
-# Tools for template handling, HTTP client handling, and unique ID generation (ulid).
 from homeassistant.util import ulid
 
 from .const import (
@@ -90,51 +72,32 @@ from .exceptions import (
     ParseArgumentsFailed,
     TokenLengthExceededError,
 )
-
-# Imports custom exceptions defined in the same integration’s package, describing various error conditions that can arise.
 from .helpers import (
     get_function_executor,
+    is_azure,
     validate_authentication,
-    validate_authentication_new,
 )
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
-# Defines a schema for the configuration, ensuring only config entries are used (and not YAML-based configuration).
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 # hass.data key for agent.
-# A string constant used as a key in the hass.data dictionary to store the conversation agent instance.
 DATA_AGENT = "agent"
 
 
-# The main setup function called when Home Assistant starts. 
-# It sets up related services (by calling async_setup_services) and returns True to confirm successful initialization.
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up OpenAI Conversation."""
     await async_setup_services(hass, config)
     return True
 
-# Sets up this integration using a config entry (the typical way modern Home Assistant integrations load).
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up OpenAI Conversation from a config entry."""
 
     try:
-        # Use the GenAI Validation
-        # await validate_authentication_new(
-        #    hass=hass,
-        #    api_key=entry.data[CONF_API_KEY],
-        #    base_url=entry.data.get(CONF_BASE_URL),
-        #    api_version=entry.data.get(CONF_API_VERSION),
-        #    organization=entry.data.get(CONF_ORGANIZATION),
-        #    skip_authentication=entry.data.get(
-        #        CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
-        #    ),
-        #)
-
-        # OpenAI Validation
         await validate_authentication(
             hass=hass,
             api_key=entry.data[CONF_API_KEY],
@@ -145,55 +108,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 CONF_SKIP_AUTHENTICATION, DEFAULT_SKIP_AUTHENTICATION
             ),
         )
-
-    # Use GenAI Error Files
-    #except ClientError as err:
-    #    _LOGGER.error("Invalid API key: %s", err)
-    #    return False
-    #except APIError as err:
-    #    raise ConfigEntryNotReady(err) from err
-
-    # OpenAI Error Files
     except AuthenticationError as err:
         _LOGGER.error("Invalid API key: %s", err)
         return False
     except OpenAIError as err:
         raise ConfigEntryNotReady(err) from err
 
-    # Creates an instance of the OpenAIAgent class, which handles all conversation logic.
     agent = OpenAIAgent(hass, entry)
 
-    # Stores references to the newly created agent in hass.data so that other parts of Home Assistant can access it.
     data = hass.data.setdefault(DOMAIN, {}).setdefault(entry.entry_id, {})
     data[CONF_API_KEY] = entry.data[CONF_API_KEY]
     data[DATA_AGENT] = agent
 
-    # Sets this agent as the active conversation agent and returns True to confirm successful setup.
     conversation.async_set_agent(hass, entry, agent)
     return True
 
-# Unloads the integration, removing stored data and unsetting the conversation agent.
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload OpenAI."""
     hass.data[DOMAIN].pop(entry.entry_id)
     conversation.async_unset_agent(hass, entry)
     return True
 
-# Defines a custom conversation agent class that extends Home Assistant’s AbstractConversationAgent
+
 class OpenAIAgent(conversation.AbstractConversationAgent):
     """OpenAI conversation agent."""
 
-    # Stores references to the Home Assistant instance, config entry, and a history dictionary that tracks conversation state by ID.
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the agent."""
         self.hass = hass
         self.entry = entry
         self.history: dict[str, list[dict]] = {}
         base_url = entry.data.get(CONF_BASE_URL)
-
-        # Depending on whether the URL is an Azure endpoint, 
-        # creates an appropriate OpenAI client (AsyncAzureOpenAI or AsyncOpenAI) for sending chat requests.
-        # This step is removed, instead it directly create an OpenAI client through AsyncOpenAI
         if is_azure(base_url):
             self.client = AsyncAzureOpenAI(
                 api_key=entry.data[CONF_API_KEY],
@@ -203,30 +149,23 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
                 http_client=get_async_client(hass),
             )
         else:
-        self.client = AsyncOpenAI(
-            api_key=entry.data[CONF_API_KEY],
-            base_url=base_url,
-            organization=entry.data.get(CONF_ORGANIZATION),
-            http_client=get_async_client(hass),
-        )
+            self.client = AsyncOpenAI(
+                api_key=entry.data[CONF_API_KEY],
+                base_url=base_url,
+                organization=entry.data.get(CONF_ORGANIZATION),
+                http_client=get_async_client(hass),
+            )
 
-    # Indicates this agent accepts messages in any language.
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:
         """Return a list of supported languages."""
         return MATCH_ALL
 
-    # The core method that handles an incoming user message, determines a response, and returns it to Home Assistant.
     async def async_process(
         self, user_input: conversation.ConversationInput
     ) -> conversation.ConversationResult:
-
-        # Gathers a list of entities that are marked as “exposed” for conversation control.
         exposed_entities = self.get_exposed_entities()
 
-        # Checks if there is an existing conversation history. 
-        # If not, it creates a new conversation ID, generates a system message using the user’s custom prompt, 
-        # and handles errors (e.g., template rendering issues).
         if user_input.conversation_id in self.history:
             conversation_id = user_input.conversation_id
             messages = self.history[conversation_id]
@@ -248,23 +187,16 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
                     response=intent_response, conversation_id=conversation_id
                 )
             messages = [system_message]
-
-        # Prepares the user’s message payload with the text input.
         user_message = {"role": "user", "content": user_input.text}
-        
-        # Optionally attaches the user’s ID if configured.
         if self.entry.options.get(CONF_ATTACH_USERNAME, DEFAULT_ATTACH_USERNAME):
             user = user_input.context.user_id
             if user is not None:
                 user_message[ATTR_NAME] = user
 
-        # Adds the user message to the conversation’s message list.
         messages.append(user_message)
 
-        # Calls the query method to get a response from OpenAI. 
         try:
             query_response = await self.query(user_input, messages, exposed_entities, 0)
-        #  Catches errors from the OpenAI library or Home Assistant. 
         except OpenAIError as err:
             _LOGGER.error(err)
             intent_response = intent.IntentResponse(language=user_input.language)
@@ -275,7 +207,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             return conversation.ConversationResult(
                 response=intent_response, conversation_id=conversation_id
             )
-        # If something goes wrong, it builds an error response.
         except HomeAssistantError as err:
             _LOGGER.error(err, exc_info=err)
             intent_response = intent.IntentResponse(language=user_input.language)
@@ -287,11 +218,9 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
                 response=intent_response, conversation_id=conversation_id
             )
 
-        # Stores the response message in the conversation history.
         messages.append(query_response.message.model_dump(exclude_none=True))
         self.history[conversation_id] = messages
 
-        # Fires an event so that other parts of the system can track when a conversation finishes.
         self.hass.bus.async_fire(
             EVENT_CONVERSATION_FINISHED,
             {
@@ -301,15 +230,12 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             },
         )
 
-        # Constructs the final response object for Home Assistant to relay back to the user.
         intent_response = intent.IntentResponse(language=user_input.language)
         intent_response.async_set_speech(query_response.message.content)
         return conversation.ConversationResult(
             response=intent_response, conversation_id=conversation_id
         )
 
-    # Retrieves the prompt template from the integration’s options or defaults, 
-    # then returns a system message that instructs the model.
     def _generate_system_message(
         self, exposed_entities, user_input: conversation.ConversationInput
     ):
@@ -317,7 +243,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         prompt = self._async_generate_prompt(raw_prompt, exposed_entities, user_input)
         return {"role": "system", "content": prompt}
 
-    # Renders the template with placeholders replaced by actual entity information, device ID, etc.
     def _async_generate_prompt(
         self,
         raw_prompt: str,
@@ -334,8 +259,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             parse_result=False,
         )
 
-    # Collects all entities that should be exposed for voice control, 
-    # including their aliases and current state, and returns them as a list.
     def get_exposed_entities(self):
         states = [
             state
@@ -362,9 +285,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             )
         return exposed_entities
 
-    # Loads a list of function definitions from YAML or uses defaults. 
-    # Passes each definition to a function executor helper that refines or converts the data. 
-    # Handles any errors by raising custom exceptions.
     def get_functions(self):
         try:
             function = self.entry.options.get(CONF_FUNCTIONS)
@@ -383,8 +303,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         except:
             raise FunctionLoadFailed()
 
-    # Depending on configuration, clears old messages from the conversation to prevent excessively large contexts. 
-    # Also regenerates the system prompt if everything got cleared.
     async def truncate_message_history(
         self, messages, exposed_entities, user_input: conversation.ConversationInput
     ):
@@ -407,8 +325,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
                     exposed_entities, user_input
                 )
 
-    # Gathers user-selected or default configuration for the OpenAI chat call (model, max tokens, temperature, etc.). 
-    # Determines how many function calls are allowed and if more calls should be blocked.
     async def query(
         self,
         user_input: conversation.ConversationInput,
@@ -425,8 +341,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         context_threshold = self.entry.options.get(
             CONF_CONTEXT_THRESHOLD, DEFAULT_CONTEXT_THRESHOLD
         )
-        
-        # Get all the functions from the user configuration of functions
         functions = list(map(lambda s: s["spec"], self.get_functions()))
         function_call = "auto"
         if n_requests == self.entry.options.get(
@@ -435,7 +349,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         ):
             function_call = "none"
 
-        # Prepares additional parameters for function/tool usage if enabled, or clears them if there are no functions.
         tool_kwargs = {"functions": functions, "function_call": function_call}
         if use_tools:
             tool_kwargs = {
@@ -446,10 +359,8 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         if len(functions) == 0:
             tool_kwargs = {}
 
-        # Logs the messages being sent for debugging.
         _LOGGER.info("Prompt for %s: %s", model, json.dumps(messages))
 
-        # Makes the asynchronous call to the OpenAI API, sending messages and function/tool definitions.
         response: ChatCompletion = await self.client.chat.completions.create(
             model=model,
             messages=messages,
@@ -460,18 +371,14 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             **tool_kwargs,
         )
 
-        # Logs the raw response for debugging purposes.
         _LOGGER.info("Response %s", json.dumps(response.model_dump(exclude_none=True)))
 
-        # Checks if the total token usage exceeded a threshold and, if so, calls the truncation method.
         if response.usage.total_tokens > context_threshold:
             await self.truncate_message_history(messages, exposed_entities, user_input)
 
-        # Extracts the main choice from the OpenAI completion response.
         choice: Choice = response.choices[0]
         message = choice.message
 
-        # If OpenAI indicates a function/tool call is needed, the relevant helper method is called.
         if choice.finish_reason == "function_call":
             return await self.execute_function_call(
                 user_input, messages, message, exposed_entities, n_requests + 1
@@ -480,16 +387,11 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             return await self.execute_tool_calls(
                 user_input, messages, message, exposed_entities, n_requests + 1
             )
-
-        #  If tokens exceeded the maximum length, a custom exception is raised.
         if choice.finish_reason == "length":
             raise TokenLengthExceededError(response.usage.completion_tokens)
 
         return OpenAIQueryResponse(response=response, message=message)
 
-    # Looks up the requested function by name. 
-    # If not found, raises an error. 
-    # Otherwise, proceeds to execute the function.
     async def execute_function_call(
         self,
         user_input: conversation.ConversationInput,
@@ -514,8 +416,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             )
         raise FunctionNotFound(function_name)
 
-    # Fetches the executor for the specified function type. 
-    # Attempts to parse JSON arguments passed by OpenAI; raises a parsing error if invalid JSON.
     async def execute_function(
         self,
         user_input: conversation.ConversationInput,
@@ -532,9 +432,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         except json.decoder.JSONDecodeError as err:
             raise ParseArgumentsFailed(message.function_call.arguments) from err
 
-
-        # Executes the function with given arguments, appends its result as a new message, 
-        # then calls query again to let OpenAI handle the updated context.
         result = await function_executor.execute(
             self.hass, function["function"], arguments, user_input, exposed_entities
         )
@@ -548,8 +445,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         )
         return await self.query(user_input, messages, exposed_entities, n_requests)
 
-    # Processes each tool call in the message. 
-    # Similar to function calls, it executes them and appends results to the conversation.
     async def execute_tool_calls(
         self,
         user_input: conversation.ConversationInput,
@@ -585,8 +480,6 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
                 raise FunctionNotFound(function_name)
         return await self.query(user_input, messages, exposed_entities, n_requests)
 
-    # Deserializes the tool’s JSON arguments and runs the corresponding function. 
-    # Returns the result to be added to the messages.
     async def execute_tool_function(
         self,
         user_input: conversation.ConversationInput,
@@ -606,11 +499,10 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
         )
         return result
 
-# A helper class for bundling the response and message together.
+
 class OpenAIQueryResponse:
     """OpenAI query response value object."""
 
-    # Stores the original ChatCompletion object and the final message returned by OpenAI.
     def __init__(
         self, response: ChatCompletion, message: ChatCompletionMessage
     ) -> None:
