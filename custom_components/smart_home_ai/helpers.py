@@ -242,16 +242,16 @@ async def validate_authentication(
     if skip_authentication:
         return
 
-    # Remove is_azure check step
-    # if is_azure(base_url):
-    #    client = AsyncAzureOpenAI(
-    #        api_key=api_key,
-    #        azure_endpoint=base_url,
-    #        api_version=api_version,
-    #        organization=organization,
-    #        http_client=get_async_client(hass),
-    #    )
-    # else:
+    # is_azure check step
+    if is_azure(base_url):
+        client = AsyncAzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=base_url,
+            api_version=api_version,
+            organization=organization,
+            http_client=get_async_client(hass),
+        )
+    else:
     client = AsyncOpenAI(
         api_key=api_key,
         base_url=base_url,
