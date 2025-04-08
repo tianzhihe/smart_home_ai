@@ -361,6 +361,7 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
 
         _LOGGER.info("Prompt for %s: %s", model, json.dumps(messages))
 
+        # Original chat completion api
         response: ChatCompletion = await self.client.chat.completions.create(
             model=model,
             messages=messages,
@@ -370,6 +371,17 @@ class OpenAIAgent(conversation.AbstractConversationAgent):
             user=user_input.conversation_id,
             **tool_kwargs,
         )
+
+        # New Response api
+        #response: ChatCompletion = await self.client.responses.create(
+        #    model=model,
+        #    messages=messages,
+        #    max_tokens=max_tokens,
+        #    top_p=top_p,
+        #    temperature=temperature,
+        #    user=user_input.conversation_id,
+        #    **tool_kwargs,
+        #)
 
         _LOGGER.info("Response %s", json.dumps(response.model_dump(exclude_none=True)))
 
